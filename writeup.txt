@@ -1,0 +1,48 @@
+Project 4 writeup
+Nan Hu
+
+Implementation:
+
+yield:
+In this project, we first modify the yield function. We need to consider the case that thread is blocked. There is no need to put current thread to the ready list, if it is blocked. The only thing we need to do is switch to the thread on the ready list when current thread is blocked. If the current thread is not blocked and it is no done yet, we need to put current thread back to ready list. and switch to another thread.
+
+mutex_init:
+It is the initial function for mutex lock. Since there are two fields in mutex structure. We just neet to initiate held to 0, and set up waiting list head and tail to NULL;
+
+mutex_lock:
+When calling thread reaquire a lock, there are two cases. First, someone already hold the lock. In this case we have to set the calling thread state to blocked and enqueue the calling thread into the waiting thread list. Second case, the lock is free. In this case, we only need to set the held fields to 1 which means calling thread has already get the lock. 
+
+mutex_unlock:
+when calling thread trying to release the lock, there are also two cases that need to be considered. First case, there is somthing on the waiting thread list. If there is/are thread/threads on the waiting list, the calling thread release the lock and give the lock to the next first thread on the waiting thread list. That is why we need to dequeue one thread from waiting thread list, and enqueue it to the ready list. Second case, there is nothing on the waiting thread list. If no one require the lock, we simple just need to release the lock by setting held to 0.
+
+condition_init:
+Initiate the waiting thread list head and tail. 
+
+conditiaon_wait:
+We first need to unlock the mutex, and enqueue the calling thread to the waiting thread list. After that switch to next thread that wants to run, Then hold the lock again.
+
+condition_signal:
+When wakes up a thread, we only need to dequeue one thread from waiting thread list, and enqueue it to the ready list. 
+
+condition_broadcast:
+Loop till signal all the threads in the waiting thread list. 
+
+thread_join:
+We try to require the lock first, then we need to consider if the child thread is done. If it is not done we have to call condition wait on this thread. If it is done, then just proceed to join. 
+
+
+Discussion:
+If we have two kernel level threads and working with concurrency. Our implementation will not work. First, we will have pre-emption problem. Anytime we call lock and unlock, we may have pre-emption problem that we lose control from another thread. Second, our scheduler ready list may become the share section that both kernel level threads can access. To solve the problem, as the slide 2 said, we can have hardware operations that like TSL to implement a spin lock, then there is a price we have to pay for spin lock. Second solution will be the blocking lock. Since we are user level threads, we can't disable interrupts, instead, we can use the spin lock above to protect the blocking lock.
+
+
+
+
+
+
+
+
+
+
+
+
+
