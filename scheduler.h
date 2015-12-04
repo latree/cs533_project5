@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include "queue.h"
 
+#define current_thread (get_current_thread())
+
 typedef enum {
     RUNNING, 
     READY,

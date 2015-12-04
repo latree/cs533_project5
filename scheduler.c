@@ -1,11 +1,9 @@
-#include "scheduler.h"
-
 #define _GNU_SOURCE
 #include <sched.h>
-
-
+#include "scheduler.h"
 
 #define STACK_SIZE 1024*1024
+
 
 struct thread * current_thread;
 struct queue ready_list;
@@ -35,7 +33,8 @@ void yield() {
         if(next_thread != NULL){
             next_thread -> state = RUNNING;
             struct thread * temp = current_thread;
-            current_thread = next_thread;
+            //current_thread = next_thread;
+            set_current_thread(next_thread);
             thread_switch(temp, current_thread);        
         }
     
@@ -46,21 +45,38 @@ void yield() {
         if(next_thread != NULL){
             next_thread -> state = RUNNING;
             struct thread * temp = current_thread;
-            current_thread = next_thread;
+            //current_thread = next_thread;
+            set_current_thread(next_thread);
             thread_switch(temp, current_thread);        
         }
     }
     
 }
 
+int kernel_thread_begin(){
+    struct thread * new_thread = malloc(sizeof(struct thread));
+    new_thread -> state = RUNNING;
+    set_current_thread(new_thread);
+    while(1){
+        yield();
+    }
+    return 0;
+}
 
 void scheduler_begin(){
     struct thread * main_thread = malloc(sizeof(struct thread));
-    current_thread = main_thread;
-    current_thread -> state = RUNNING;
+    //current_thread = main_thread;
+    main_thread -> state = RUNNING;
+    set_current_thread(main_thread);
  
+
     ready_list.head = NULL;
     ready_list.tail = NULL;
+
+    // create a stack for child process
+    void * child_stk_bot = malloc(STACK_SIZE);
+    void * child_stk_top = child_stk_bot + STACK_SIZE;
+    int child_th_id = clone(&kernel_thread_begin, child_stk_top, CLONE_THREAD | CLONE_VM | CLONE_SIGHAND | CLONE_FILES | CLONE_FS | CLONE_IO, NULL);
 
 }
 
@@ -84,7 +100,8 @@ struct thread * thread_fork(void(*target)(void*), void *arg){
     thread_enqueue(&ready_list, current_thread); 
     new_thread -> state = RUNNING;
     struct thread * temp = current_thread;
-    current_thread = new_thread;
+    //current_thread = new_thread;
+    set_current_thread(new_thread);
     thread_start(temp, current_thread);
 
     // because of join
