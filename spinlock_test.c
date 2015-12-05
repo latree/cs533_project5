@@ -30,9 +30,13 @@
 
 void spinlock_lock(AO_TS_t * lock) {
   // your implementation here
+  while(AO_test_and_set_acquire(lock) == AO_TS_SET);
+
+
 }
 void spinlock_unlock(AO_TS_t * lock) {
   // your implementation here
+  AO_CLEAR(lock);
 }
 
 int shared_counter;

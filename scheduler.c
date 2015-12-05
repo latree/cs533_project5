@@ -1,5 +1,6 @@
 #define _GNU_SOURCE
 #include <sched.h>
+#include <atomic_ops.h>
 #include "scheduler.h"
 
 #define STACK_SIZE 1024*1024
@@ -7,6 +8,27 @@
 
 struct thread * current_thread;
 struct queue ready_list;
+
+
+#undef malloc
+#undef free
+
+void * safe_mem(int op, void * arg) {
+  static AO_TS_t spinlock = AO_TS_INITIALIZER;
+  void * result = 0;
+
+  spinlock_lock(&spinlock);
+  if(op == 0) {
+    result = malloc((size_t)arg);
+  } else {
+    free(arg);
+  }
+  spinlock_unlock(&spinlock);
+  return result;
+}
+
+#define malloc(arg) safe_mem(0, ((void*)(arg)))
+#define free(arg) safe_mem(1, arg)
 
 
 void thread_wrap() {

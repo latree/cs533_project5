@@ -11,7 +11,7 @@
  */
 
 /*********** uncomment this line once you have completed part 2! **************/
-// #define PART2COMPLETE
+#define PART2COMPLETE
 /******************************************************************************/
 
 #define _GNU_SOURCE
