@@ -6,7 +6,7 @@
 #define STACK_SIZE 1024*1024
 
 
-struct thread * current_thread;
+struct thread * main_thread;
 struct queue ready_list;
 
 
@@ -86,12 +86,11 @@ int kernel_thread_begin(){
 }
 
 void scheduler_begin(){
-    struct thread * main_thread = malloc(sizeof(struct thread));
+    main_thread = malloc(sizeof(struct thread));
     //current_thread = main_thread;
     main_thread -> state = RUNNING;
     set_current_thread(main_thread);
  
-
     ready_list.head = NULL;
     ready_list.tail = NULL;
 
