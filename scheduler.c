@@ -30,8 +30,13 @@ void * safe_mem(int op, void * arg) {
 #define malloc(arg) safe_mem(0, ((void*)(arg)))
 #define free(arg) safe_mem(1, arg)
 
+// initialize a lock for ready list
+AO_TS_t read_list_lock = AO_TS_INITIALIZER;
+
 
 void thread_wrap() {
+    spinlock_unlock(&read_list_lock);
+
     mutex_lock(current_thread -> TCBMutex);
     current_thread->initial_function(current_thread->initial_argument);
     current_thread -> state = DONE;
@@ -43,6 +48,8 @@ void thread_wrap() {
 }
 
 void yield() {
+    spinlock_lock(&read_list_lock);
+
     if(current_thread -> state != BLOCKED){
         if(current_thread -> state != DONE){
             current_thread -> state = READY;
@@ -71,7 +78,9 @@ void yield() {
             set_current_thread(next_thread);
             thread_switch(temp, current_thread);        
         }
+
     }
+    spinlock_unlock(&read_list_lock);
     
 }
 
@@ -103,6 +112,8 @@ void scheduler_begin(){
 
 //void thread_fork(void(*target)(void*), void *arg){
 struct thread * thread_fork(void(*target)(void*), void *arg){
+    spinlock_lock(&read_list_lock);
+
     struct thread * new_thread = malloc(sizeof(struct thread));    
     
     new_thread -> stack_pointer = malloc(STACK_SIZE) + STACK_SIZE;
@@ -125,6 +136,8 @@ struct thread * thread_fork(void(*target)(void*), void *arg){
     set_current_thread(new_thread);
     thread_start(temp, current_thread);
 
+    spinlock_unlock(&read_list_lock);
+
     // because of join
     return new_thread;
 }
@@ -139,9 +152,13 @@ void thread_join(struct thread * thread){
 }
 
 void scheduler_end(){
+    spinlock_lock(&read_list_lock);
     while(!is_empty(&ready_list)){
+        spinlock_unlock(&read_list_lock);
         yield();
+        spinlock_lock(&read_list_lock);
     }
+    spinlock_unlock(&read_list_lock);
 }
 
 
