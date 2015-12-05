@@ -1,6 +1,6 @@
 #define _GNU_SOURCE
 #include <sched.h>
-#include <atomic_ops.h>
+
 #include "scheduler.h"
 
 #define STACK_SIZE 1024*1024
@@ -82,6 +82,43 @@ void yield() {
     }
     spinlock_unlock(&read_list_lock);
     
+}
+
+void block(AO_TS_t * spinlock){
+   spinlock_lock(&read_list_lock);
+   spinlock_unlock(&read_list_lock);
+
+    if(current_thread -> state != BLOCKED){
+        if(current_thread -> state != DONE){
+            current_thread -> state = READY;
+            thread_enqueue(&ready_list, current_thread);    
+        
+        }
+
+        struct thread * next_thread = thread_dequeue(&ready_list);
+            
+        if(next_thread != NULL){
+            next_thread -> state = RUNNING;
+            struct thread * temp = current_thread;
+            //current_thread = next_thread;
+            set_current_thread(next_thread);
+            thread_switch(temp, current_thread);        
+        }
+    
+    }
+    else{
+         struct thread * next_thread = thread_dequeue(&ready_list);
+            
+        if(next_thread != NULL){
+            next_thread -> state = RUNNING;
+            struct thread * temp = current_thread;
+            //current_thread = next_thread;
+            set_current_thread(next_thread);
+            thread_switch(temp, current_thread);        
+        }
+
+    }
+    spinlock_unlock(&read_list_lock);
 }
 
 int kernel_thread_begin(){
@@ -168,21 +205,24 @@ void mutex_init(struct mutex * lock){
     //lock -> waiting_threads = malloc(sizeof(struct queue));
     lock -> waiting_threads.head = NULL;
     lock -> waiting_threads.tail = NULL;
+    lock -> spinlock = AO_TS_INITIALIZER;
 }
 
 
 void mutex_lock(struct mutex * lock){
+    spinlock_lock(&lock -> spinlock);
     if(lock -> held == 1){
         current_thread -> state = BLOCKED;
         thread_enqueue(&lock -> waiting_threads, current_thread);
-        yield();   // this is where I forget
+        block(&lock -> spinlock);   // this is where I forget
     }
     else
         lock -> held = 1;
+    spinlock_unlock(&lock -> spinlock);
 }
 
 void mutex_unlock(struct mutex * lock){
-
+    spinlock_lock(&lock -> spinlock);
     if(!is_empty(&lock -> waiting_threads)){
         struct thread * ready_thread = thread_dequeue(&lock -> waiting_threads);
         if(ready_thread){
@@ -192,6 +232,7 @@ void mutex_unlock(struct mutex * lock){
     }
     else
         lock -> held = 0;
+    spinlock_unlock(&lock -> spinlock);
 }
 
 

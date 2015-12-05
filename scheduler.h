@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <atomic_ops.h>
 #include "queue.h"
 
 #define current_thread (get_current_thread())
@@ -27,6 +28,7 @@ struct thread{
 struct mutex {
      int held;
      struct queue waiting_threads;
+     AO_TS_t spinlock;
 };
 
 
